@@ -1,5 +1,7 @@
 __pycache__/
 *.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+*.pdf
 data/raw/Honduras/honduras_io.csv
-__pycache__/
-*.pyc

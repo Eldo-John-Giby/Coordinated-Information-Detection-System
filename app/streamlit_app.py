@@ -127,16 +127,29 @@ def load_data(processed_dir: str = "data/processed"):
     return None
 
 
+def hex_to_rgba(hex_color: str, alpha: float = 0.12) -> str:
+    """Convert hex color string to rgba CSS format."""
+    hex_color = hex_color.lstrip("#")
+    if len(hex_color) == 6:
+        r = int(hex_color[0:2], 16)
+        g = int(hex_color[2:4], 16)
+        b = int(hex_color[4:6], 16)
+        return f"rgba({r}, {g}, {b}, {alpha})"
+    return f"rgba(100, 116, 139, {alpha})"
+
+
 def create_network_plot(
     G: nx.Graph,
     title: str = "Coordination Network",
     node_size_scale: float = 1.0,
     spacing_factor: float = 2.0,
-    hide_isolates: bool = False
+    hide_isolates: bool = False,
+    show_louvain_rings: bool = True,
+    show_cluster_boundaries: bool = True
 ):
-    """Create a clean, highly legible, interactive Plotly network visualization."""
+    """Create an interactive Plotly network visualization with Louvain community rings."""
     if G.number_of_nodes() == 0:
-        return go.Figure()
+        return go.Figure(), {}
 
     # Filter isolates if requested
     plot_G = G.copy()
@@ -147,17 +160,91 @@ def create_network_plot(
 
     n_nodes = plot_G.number_of_nodes()
     if n_nodes == 0:
-        return go.Figure()
+        return go.Figure(), {}
 
-    # Dynamic spring layout for optimal spacing
+    # Detect Louvain communities
+    try:
+        import community as community_louvain
+        partition = community_louvain.best_partition(plot_G, weight="coordination_score")
+    except Exception:
+        try:
+            from networkx.algorithms.community import greedy_modularity_communities
+            comm_list = list(greedy_modularity_communities(plot_G, weight="coordination_score"))
+            partition = {node: i for i, c in enumerate(comm_list) for node in c}
+        except Exception:
+            partition = {node: 0 for node in plot_G.nodes()}
+
+    # Community palette and color assignment
+    COMMUNITY_PALETTE = [
+        "#3b82f6", "#f59e0b", "#8b5cf6", "#06b6d4", "#ec4899",
+        "#10b981", "#f97316", "#84cc16", "#6366f1", "#14b8a6",
+        "#e11d48", "#eab308", "#d946ef", "#0ea5e9", "#a855f7", "#22c55e"
+    ]
+    comm_sizes = {}
+    comm_io_counts = {}
+    for n, c in partition.items():
+        comm_sizes[c] = comm_sizes.get(c, 0) + 1
+        if plot_G.nodes[n].get("is_io", False):
+            comm_io_counts[c] = comm_io_counts.get(c, 0) + 1
+
+    sorted_comms = sorted(comm_sizes.keys(), key=lambda c: comm_sizes[c], reverse=True)
+    comm_to_color = {
+        c: COMMUNITY_PALETTE[i % len(COMMUNITY_PALETTE)]
+        for i, c in enumerate(sorted_comms)
+    }
+
+    # Dynamic spring layout for optimal spacing and responsiveness
+    # Adjust iterations based on node count to ensure smooth rendering
+    iterations = 60 if n_nodes <= 150 else (40 if n_nodes <= 400 else 25)
     k_val = (spacing_factor / np.sqrt(max(n_nodes, 4))) * 1.5
-    pos = nx.spring_layout(plot_G, k=k_val, iterations=60, seed=42)
+    pos = nx.spring_layout(plot_G, k=k_val, iterations=iterations, seed=42)
+
+    # Louvain Community cluster boundary hulls
+    hull_traces = []
+    if show_cluster_boundaries:
+        from scipy.spatial import ConvexHull
+        comm_nodes_map = {}
+        for n, c in partition.items():
+            comm_nodes_map.setdefault(c, []).append(n)
+
+        for c, members in comm_nodes_map.items():
+            if len(members) >= 3:
+                pts = np.array([pos[m] for m in members])
+                try:
+                    hull = ConvexHull(pts)
+                    hull_pts = pts[hull.vertices]
+                    centroid = np.mean(hull_pts, axis=0)
+                    diffs = hull_pts - centroid
+                    norms = np.linalg.norm(diffs, axis=1, keepdims=True)
+                    norms[norms == 0] = 1.0
+                    padded = hull_pts + diffs * 0.18 + (diffs / norms) * 0.04
+                    padded = np.vstack([padded, padded[0]])
+
+                    color = comm_to_color.get(c, "#94a3b8")
+                    hull_traces.append(
+                        go.Scatter(
+                            x=padded[:, 0].tolist(),
+                            y=padded[:, 1].tolist(),
+                            mode="lines",
+                            fill="toself",
+                            fillcolor=hex_to_rgba(color, 0.08),
+                            line=dict(color=color, width=2, dash="dash"),
+                            hoverinfo="text",
+                            hovertext=f"<b>Louvain Community #{c} Ring</b><br>Members in view: {len(members)} accounts",
+                            name=f"Community #{c} Ring",
+                            showlegend=False
+                        )
+                    )
+                except Exception:
+                    pass
 
     # Node attributes
     node_x = []
     node_y = []
     node_colors = []
     node_sizes = []
+    node_border_colors = []
+    node_border_widths = []
     node_text = []
 
     degrees = dict(plot_G.degree())
@@ -170,19 +257,31 @@ def create_network_plot(
 
         is_io = plot_G.nodes[node].get("is_io", False)
         deg = degrees.get(node, 0)
+        comm_id = partition.get(node, 0)
+        comm_color = comm_to_color.get(comm_id, "#3b82f6")
+        comm_size = comm_sizes.get(comm_id, 1)
 
-        # Clean modern colors: Crimson for IO, Emerald for Control
+        # Core node fill color: Crimson for IO, Emerald for Control
         color = "#ef4444" if is_io else "#10b981"
         node_colors.append(color)
 
         # Scaled, bounded node size (between 6px and 16px base)
         norm_deg = deg / max_deg
-        size = (6 + norm_deg * 10) * node_size_scale
+        size = (7 + norm_deg * 11) * node_size_scale
         node_sizes.append(size)
+
+        # Louvain Community outer ring border
+        if show_louvain_rings:
+            node_border_colors.append(comm_color)
+            node_border_widths.append(3.2)
+        else:
+            node_border_colors.append("#ffffff")
+            node_border_widths.append(1.2)
 
         node_text.append(
             f"<b>Account:</b> {node}<br>"
             f"<b>Status:</b> {'[FLAGGED] Inauthentic / IO' if is_io else '[OK] Organic / Control'}<br>"
+            f"<b>Louvain Community:</b> Community #{comm_id} ({comm_size} accounts in view)<br>"
             f"<b>Connections:</b> {deg}<br>"
             f"<b>Posts:</b> {plot_G.nodes[node].get('post_count', 'N/A')}"
         )
@@ -196,8 +295,8 @@ def create_network_plot(
         marker=dict(
             size=node_sizes,
             color=node_colors,
-            line=dict(width=1.2, color="#ffffff"),
-            opacity=0.9
+            line=dict(width=node_border_widths, color=node_border_colors),
+            opacity=0.92
         ),
         name="Accounts"
     )
@@ -227,8 +326,10 @@ def create_network_plot(
         name="Coordination Links"
     )
 
+    all_traces = hull_traces + [edge_trace, node_trace]
+
     fig = go.Figure(
-        data=[edge_trace, node_trace],
+        data=all_traces,
         layout=go.Layout(
             title=dict(text=title, font=dict(size=16)),
             showlegend=True,
@@ -245,7 +346,14 @@ def create_network_plot(
         )
     )
 
-    return fig
+    comm_summary = {
+        "sorted_comms": sorted_comms,
+        "comm_sizes": comm_sizes,
+        "comm_io_counts": comm_io_counts,
+        "comm_to_color": comm_to_color,
+    }
+
+    return fig, comm_summary
 
 
 def main():
@@ -365,32 +473,56 @@ def main():
 
         # Interactive controls for graph exploration
         with st.expander("Graph Display Controls", expanded=True):
-            ctrl_col1, ctrl_col2, ctrl_col3, ctrl_col4 = st.columns(4)
+            ctrl_col1, ctrl_col2, ctrl_col3 = st.columns(3)
             with ctrl_col1:
-                node_limit = st.slider("Max Nodes to Show", min_value=20, max_value=300, value=80, step=10)
+                node_limit = st.slider(
+                    "Max Nodes to Show",
+                    min_value=20,
+                    max_value=1000,
+                    value=120,
+                    step=20,
+                    help="Controls how many accounts to render (sorted by connectivity). Nodes > 400 may require a few extra seconds for force-directed layout computation."
+                )
             with ctrl_col2:
                 node_size_scale = st.slider("Node Size Multiplier", min_value=0.5, max_value=2.0, value=1.0, step=0.1)
             with ctrl_col3:
                 spacing_factor = st.slider("Layout Spacing", min_value=1.0, max_value=4.0, value=2.2, step=0.2)
-            with ctrl_col4:
+
+            opt_col1, opt_col2, opt_col3 = st.columns(3)
+            with opt_col1:
+                show_louvain_rings = st.checkbox(
+                    "Show Louvain Community Rings",
+                    value=True,
+                    help="Draws high-visibility colored outer rings on account nodes representing their Louvain community."
+                )
+            with opt_col2:
+                show_cluster_boundaries = st.checkbox(
+                    "Show Community Boundary Rings",
+                    value=True,
+                    help="Draws dashed boundary rings and soft cluster hulls around multi-account Louvain communities."
+                )
+            with opt_col3:
                 hide_isolates = st.checkbox("Hide Isolated Accounts", value=True)
 
         G = load_graph(results_dir)
         if G is not None and G.number_of_nodes() > 0:
+            total_graph_nodes = results.get("graph_stats", {}).get("num_nodes", G.number_of_nodes())
             if G.number_of_nodes() > node_limit:
                 degrees = dict(G.degree())
                 top_nodes = sorted(degrees, key=degrees.get, reverse=True)[:node_limit]
                 G = G.subgraph(top_nodes).copy()
                 st.caption(
-                    f"Showing top {node_limit} most-connected accounts (out of {results.get('graph_stats', {}).get('num_nodes', len(top_nodes))} total)."
+                    f"Showing top {len(top_nodes)} most-connected accounts (out of {total_graph_nodes:,} total in graph)."
                 )
 
-            fig = create_network_plot(
+            fig, comm_summary = create_network_plot(
                 G=G,
                 title="Interactive Account Coordination Network",
                 node_size_scale=node_size_scale,
                 spacing_factor=spacing_factor,
-                hide_isolates=hide_isolates
+                hide_isolates=hide_isolates,
+                show_louvain_rings=show_louvain_rings,
+                show_cluster_boundaries=show_cluster_boundaries
             )
 
             st.plotly_chart(
@@ -404,7 +536,27 @@ def main():
                 },
                 key="interactive_network",
             )
-            st.info("**Navigation:** Click & drag anywhere to **pan freely**. Use your mouse wheel / trackpad to **zoom smoothly** in and out. Hover over any node to view account details.")
+            st.info(
+                "**Legend & Navigation:** Node **inner fill** = Red (Inauthentic / IO) vs Green (Organic / Control). "
+                "Node **outer ring** = Louvain Community. Click & drag anywhere to **pan**. Scroll/pinch to **zoom**."
+            )
+
+            # Display Louvain community badges
+            if show_louvain_rings and comm_summary.get("sorted_comms"):
+                top_comms = comm_summary["sorted_comms"][:8]
+                comm_badges_html = " ".join([
+                    f"<span style='display:inline-block; margin:2px 6px; padding:3px 9px; "
+                    f"border-radius:12px; background:{comm_summary['comm_to_color'][c]}22; "
+                    f"border:1.5px solid {comm_summary['comm_to_color'][c]}; font-size:12px;'>"
+                    f"<b>Community #{c}</b>: {comm_summary['comm_sizes'][c]} accounts "
+                    f"({comm_summary['comm_io_counts'].get(c, 0)} IO)</span>"
+                    for c in top_comms
+                ])
+                st.markdown(
+                    f"<div style='margin-top:4px; margin-bottom:12px;'>"
+                    f"<b>Top Louvain Communities in View:</b><br>{comm_badges_html}</div>",
+                    unsafe_allow_html=True
+                )
         else:
             st.info(
                 "Persisted graph not found (results/artifacts/coordination_graph.pkl). "
