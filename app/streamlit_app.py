@@ -27,7 +27,6 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 st.set_page_config(
     page_title="Coordinated Network Detection",
-    page_icon="🔍",
     layout="wide",
     initial_sidebar_state="expanded",
 )
@@ -121,31 +120,67 @@ def load_data(processed_dir: str = "data/processed"):
     return None
 
 
-def create_network_plot(G: nx.Graph, title: str = "Coordination Network"):
-    """Create an interactive Plotly network visualization."""
+def create_network_plot(
+    G: nx.Graph,
+    title: str = "Coordination Network",
+    node_size_scale: float = 1.0,
+    spacing_factor: float = 2.0,
+    hide_isolates: bool = False
+):
+    """Create a clean, highly legible, interactive Plotly network visualization."""
     if G.number_of_nodes() == 0:
         return go.Figure()
 
-    # Use spring layout
-    pos = nx.spring_layout(G, k=2, iterations=50, seed=42)
+    # Filter isolates if requested
+    plot_G = G.copy()
+    if hide_isolates:
+        connected_nodes = [n for n in plot_G.nodes() if plot_G.degree(n) > 0]
+        if connected_nodes:
+            plot_G = plot_G.subgraph(connected_nodes).copy()
 
-    # Node trace
-    node_x = [pos[node][0] for node in G.nodes()]
-    node_y = [pos[node][1] for node in G.nodes()]
+    n_nodes = plot_G.number_of_nodes()
+    if n_nodes == 0:
+        return go.Figure()
 
+    # Dynamic spring layout for optimal spacing
+    k_val = (spacing_factor / np.sqrt(max(n_nodes, 4))) * 1.5
+    pos = nx.spring_layout(plot_G, k=k_val, iterations=60, seed=42)
+
+    # Node attributes
+    node_x = []
+    node_y = []
     node_colors = []
     node_sizes = []
     node_text = []
-    for node in G.nodes():
-        is_io = G.nodes[node].get("is_io", False)
-        node_colors.append("#e74c3c" if is_io else "#2ecc71")
-        node_sizes.append(10 + G.degree(node) * 3)
+
+    degrees = dict(plot_G.degree())
+    max_deg = max(degrees.values()) if degrees and max(degrees.values()) > 0 else 1
+
+    for node in plot_G.nodes():
+        x, y = pos[node]
+        node_x.append(x)
+        node_y.append(y)
+
+        is_io = plot_G.nodes[node].get("is_io", False)
+        deg = degrees.get(node, 0)
+
+        # Clean modern colors: Crimson for IO, Emerald for Control
+        color = "#ef4444" if is_io else "#10b981"
+        node_colors.append(color)
+
+        # Scaled, bounded node size (between 6px and 16px base)
+        norm_deg = deg / max_deg
+        size = (6 + norm_deg * 10) * node_size_scale
+        node_sizes.append(size)
+
         node_text.append(
-            f"Account: {node}<br>"
-            f"IO: {'Yes' if is_io else 'No'}<br>"
-            f"Connections: {G.degree(node)}"
+            f"<b>Account:</b> {node}<br>"
+            f"<b>Status:</b> {'[FLAGGED] Inauthentic / IO' if is_io else '[OK] Organic / Control'}<br>"
+            f"<b>Connections:</b> {deg}<br>"
+            f"<b>Posts:</b> {plot_G.nodes[node].get('post_count', 'N/A')}"
         )
 
+    # Node trace
     node_trace = go.Scatter(
         x=node_x, y=node_y,
         mode="markers",
@@ -154,8 +189,8 @@ def create_network_plot(G: nx.Graph, title: str = "Coordination Network"):
         marker=dict(
             size=node_sizes,
             color=node_colors,
-            line=dict(width=1, color="gray"),
-            opacity=0.8
+            line=dict(width=1.2, color="#ffffff"),
+            opacity=0.9
         ),
         name="Accounts"
     )
@@ -163,43 +198,43 @@ def create_network_plot(G: nx.Graph, title: str = "Coordination Network"):
     # Edge trace
     edge_x = []
     edge_y = []
-    edge_widths = []
-    edge_colors = []
     edge_text = []
 
-    for u, v, data in G.edges(data=True):
+    for u, v, data in plot_G.edges(data=True):
         x0, y0 = pos[u]
         x1, y1 = pos[v]
         edge_x.extend([x0, x1, None])
         edge_y.extend([y0, y1, None])
 
         score = data.get("coordination_score", 0)
-        edge_widths.append(0.5 + score * 3)
-        edge_colors.append(score)
-        edge_text.append(f"Score: {score:.3f}")
+        edge_text.append(f"Coordination: {score:.3f}")
 
     edge_trace = go.Scatter(
         x=edge_x, y=edge_y,
         mode="lines",
-        hoverinfo="text",
-        text=edge_text,
+        hoverinfo="none",
         line=dict(
-            width=1,
-            color="rgba(150,150,150,0.5)"
+            width=1.0,
+            color="rgba(148, 163, 184, 0.45)"
         ),
-        name="Coordination Edges"
+        name="Coordination Links"
     )
 
     fig = go.Figure(
         data=[edge_trace, node_trace],
         layout=go.Layout(
-            title=title,
+            title=dict(text=title, font=dict(size=16, color="#1e293b")),
             showlegend=True,
+            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
             hovermode="closest",
+            dragmode="pan",  # Allows free dragging/panning across the screen
             xaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
             yaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
-            plot_bgcolor="white",
-            height=600,
+            plot_bgcolor="#f8fafc",
+            paper_bgcolor="#ffffff",
+            margin=dict(l=20, r=20, t=50, b=20),
+            height=650,
+            uirevision="constant_view"
         )
     )
 
@@ -207,7 +242,7 @@ def create_network_plot(G: nx.Graph, title: str = "Coordination Network"):
 
 
 def main():
-    st.title("🔍 Coordinated Misinformation Network Detection")
+    st.title("Coordinated Misinformation Network Detection")
     st.markdown("---")
 
     # Sidebar
@@ -229,8 +264,8 @@ def main():
 
     # Tabs
     tab1, tab2, tab3, tab4, tab5 = st.tabs([
-        "📊 Overview", "🕵️ Suspicious Groups", "🌐 Network Graph",
-        "📈 Model Comparison", "🔬 Explanations"
+        "Overview", "Suspicious Groups", "Network Graph",
+        "Model Comparison", "Explanations"
     ])
 
     # Tab 1: Overview
@@ -274,7 +309,7 @@ def main():
 
         for i, group in enumerate(groups):
             with st.expander(
-                f"🚨 Group {group.get('group_id', i)}: "
+                f"[FLAGGED] Group {group.get('group_id', i)}: "
                 f"{group.get('num_accounts', 0)} accounts, "
                 f"Score: {group.get('coordination_score', 0):.3f}",
                 expanded=(i == 0)
@@ -291,7 +326,7 @@ def main():
                             {}
                         )
                         is_io = detail.get("is_io", False)
-                        icon = "🔴" if is_io else "🟢"
+                        icon = "[IO]" if is_io else "[Control]"
                         st.write(f"{icon} {acc} "
                                 f"(Posts: {detail.get('post_count', 'N/A')})")
 
@@ -310,7 +345,7 @@ def main():
                     for ev in evidence:
                         st.markdown(
                             f"<div class='evidence-item'>"
-                            f"📌 {ev.get('description', 'N/A')}"
+                            f"{ev.get('description', 'N/A')}"
                             f"</div>",
                             unsafe_allow_html=True
                         )
@@ -321,29 +356,52 @@ def main():
     with tab3:
         st.header("Coordination Network Graph")
 
-        # Item 17: interactive Plotly network from the persisted graph,
-        # instead of the static network_graph.png image.
+        # Interactive controls for graph exploration
+        with st.expander("Graph Display Controls", expanded=True):
+            ctrl_col1, ctrl_col2, ctrl_col3, ctrl_col4 = st.columns(4)
+            with ctrl_col1:
+                node_limit = st.slider("Max Nodes to Show", min_value=20, max_value=300, value=80, step=10)
+            with ctrl_col2:
+                node_size_scale = st.slider("Node Size Multiplier", min_value=0.5, max_value=2.0, value=1.0, step=0.1)
+            with ctrl_col3:
+                spacing_factor = st.slider("Layout Spacing", min_value=1.0, max_value=4.0, value=2.2, step=0.2)
+            with ctrl_col4:
+                hide_isolates = st.checkbox("Hide Isolated Accounts", value=True)
+
         G = load_graph(results_dir)
         if G is not None and G.number_of_nodes() > 0:
-            max_nodes = 300
-            if G.number_of_nodes() > max_nodes:
+            if G.number_of_nodes() > node_limit:
                 degrees = dict(G.degree())
-                top_nodes = sorted(degrees, key=degrees.get, reverse=True)[:max_nodes]
+                top_nodes = sorted(degrees, key=degrees.get, reverse=True)[:node_limit]
                 G = G.subgraph(top_nodes).copy()
                 st.caption(
-                    f"Showing the {max_nodes} most-connected nodes of "
-                    f"{G.number_of_nodes()} total."
+                    f"Showing top {node_limit} most-connected accounts (out of {results.get('graph_stats', {}).get('num_nodes', len(top_nodes))} total)."
                 )
+
+            fig = create_network_plot(
+                G=G,
+                title="Interactive Account Coordination Network",
+                node_size_scale=node_size_scale,
+                spacing_factor=spacing_factor,
+                hide_isolates=hide_isolates
+            )
+
             st.plotly_chart(
-                create_network_plot(G, "Coordination Network"),
+                fig,
                 use_container_width=True,
+                config={
+                    "scrollZoom": True,
+                    "displayModeBar": True,
+                    "modeBarButtonsToAdd": ["drawline", "drawcircle", "eraseshape"],
+                    "displaylogo": False,
+                },
                 key="interactive_network",
             )
+            st.info("**Navigation:** Click & drag anywhere to **pan freely**. Use your mouse wheel / trackpad to **zoom smoothly** in and out. Hover over any node to view account details.")
         else:
             st.info(
-                "Persisted graph not found (results/artifacts/"
-                "coordination_graph.pkl). Re-run the pipeline to generate it; "
-                "falling back to the static image."
+                "Persisted graph not found (results/artifacts/coordination_graph.pkl). "
+                "Falling back to the static image."
             )
             graph_path = os.path.join(results_dir, "figures", "network_graph.png")
             if os.path.exists(graph_path):

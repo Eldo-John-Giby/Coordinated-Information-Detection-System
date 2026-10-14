@@ -3,7 +3,7 @@
 
 > **One-line summary:** An end-to-end ML research pipeline that detects **coordinated networks of accounts** (state-sponsored Information Operations) in social media data by combining NLP semantic matching, temporal/content-sharing behavioral signals, graph construction, community detection, and Graph Neural Networks — with rigorous evaluation, ablation, explainability, and a Streamlit dashboard.
 
-> **⚠️ Core disclaimer (from the README):** The system detects **coordination patterns**. It does **NOT** establish that an account is malicious, that content is false, or that an Information Operation is occurring. Coordination is one signal among many that warrants further human investigation.
+> **Warning: Core disclaimer (from the README):** The system detects **coordination patterns**. It does **NOT** establish that an account is malicious, that content is false, or that an Information Operation is occurring. Coordination is one signal among many that warrants further human investigation.
 
 ---
 

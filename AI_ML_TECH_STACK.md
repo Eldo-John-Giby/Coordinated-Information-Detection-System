@@ -2,7 +2,7 @@
 
 ---
 
-## 🧠 Models Used
+## Models Used
 
 ### 1. Graph Neural Networks (GNNs)
 
@@ -70,7 +70,7 @@
 
 ---
 
-## 🔍 Similarity Search
+## Similarity Search
 
 | Method | Library | Description |
 |--------|---------|-------------|
@@ -83,7 +83,7 @@
 
 ---
 
-## 📊 Feature Engineering Pipeline
+## Feature Engineering Pipeline
 
 ### Node (Account) Features
 | Feature | Description |
@@ -120,7 +120,7 @@
 
 ---
 
-## 🕸️ Graph Construction
+## Graph Construction
 
 - **File:** `src/graph/builder.py`
 - **Libraries:** `networkx`, `torch_geometric`
@@ -132,7 +132,7 @@
 
 ---
 
-## 🧩 Community Detection
+## Community Detection
 
 | Method | Library | Description |
 |--------|---------|-------------|
@@ -145,7 +145,7 @@
 
 ---
 
-## 📈 Evaluation & Metrics
+## Evaluation & Metrics
 
 | Metric | Usage |
 |--------|-------|
@@ -163,7 +163,7 @@
 
 ---
 
-## 📦 Full Python Dependency Stack
+## Full Python Dependency Stack
 
 | Package | Version | Purpose |
 |---------|---------|---------|
@@ -184,7 +184,7 @@
 
 ---
 
-## 🔄 Pipeline Architecture (End-to-End)
+## Pipeline Architecture (End-to-End)
 
 ```
 ┌─────────────────────────────────────────────────────────┐
@@ -242,7 +242,7 @@
 
 ---
 
-## 📁 Key File Reference
+## Key File Reference
 
 | Module | Key Files |
 |--------|-----------|

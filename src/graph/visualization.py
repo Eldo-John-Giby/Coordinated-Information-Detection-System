@@ -79,30 +79,29 @@ class GraphVisualizer:
             else:
                 node_colors.append(self.colors["control_account"])
 
-        # Node sizes based on degree
+        # Node sizes based on degree (compact and legible)
         degrees = [G.degree(n) for n in G.nodes()]
-        max_deg = max(degrees) if degrees else 1
-        node_sizes = [100 + 400 * (d / max_deg) for d in degrees]
+        max_deg = max(degrees) if degrees and max(degrees) > 0 else 1
+        node_sizes = [25 + 75 * (d / max_deg) for d in degrees]
 
         # Edge widths based on coordination score
         edge_weights = [G[u][v].get("coordination_score", 0.1)
                        for u, v in G.edges()]
-        max_ew = max(edge_weights) if edge_weights else 1
-        edge_widths = [0.5 + 3 * (w / max_ew) for w in edge_weights]
-        edge_colors = [plt.cm.YlOrRd(w / max_ew) for w in edge_weights]
+        max_ew = max(edge_weights) if edge_weights and max(edge_weights) > 0 else 1
+        edge_widths = [0.4 + 1.8 * (w / max_ew) for w in edge_weights]
+        edge_colors = [plt.cm.YlOrRd(0.2 + 0.8 * (w / max_ew)) for w in edge_weights]
 
-        # Layout
-        if G.number_of_nodes() < 50:
-            pos = nx.spring_layout(G, k=2, iterations=50, seed=42)
-        else:
-            pos = nx.spring_layout(G, k=1.5, iterations=30, seed=42)
+        # Dynamic layout with proper spacing
+        n_nodes = max(G.number_of_nodes(), 4)
+        k_val = 2.5 / np.sqrt(n_nodes)
+        pos = nx.spring_layout(G, k=k_val, iterations=60, seed=42)
 
         # Draw
         nx.draw_networkx_edges(G, pos, ax=ax, width=edge_widths,
-                              edge_color=edge_colors, alpha=0.6)
+                              edge_color=edge_colors, alpha=0.5)
         nx.draw_networkx_nodes(G, pos, ax=ax, node_size=node_sizes,
-                              node_color=node_colors, alpha=0.8, edgecolors="gray",
-                              linewidths=0.5)
+                              node_color=node_colors, alpha=0.85, edgecolors="white",
+                              linewidths=0.8)
 
         # Labels for small graphs
         if G.number_of_nodes() <= 30:
@@ -289,12 +288,19 @@ class GraphVisualizer:
         node_colors = [comm_colors.get(node_community.get(n, -1), (0.7, 0.7, 0.7, 1))
                       for n in G.nodes()]
 
-        # Layout
-        pos = nx.spring_layout(G, k=1.5, iterations=30, seed=42)
+        # Dynamic layout with proper spacing
+        n_nodes = max(G.number_of_nodes(), 4)
+        k_val = 2.5 / np.sqrt(n_nodes)
+        pos = nx.spring_layout(G, k=k_val, iterations=60, seed=42)
 
-        nx.draw_networkx_edges(G, pos, ax=ax, alpha=0.3, edge_color="gray")
-        nx.draw_networkx_nodes(G, pos, ax=ax, node_size=100,
-                              node_color=node_colors, alpha=0.8)
+        # Dynamic clean node sizes
+        degrees = dict(G.degree())
+        max_deg = max(degrees.values()) if degrees and max(degrees.values()) > 0 else 1
+        node_sizes = [25 + 60 * (degrees.get(n, 0) / max_deg) for n in G.nodes()]
+
+        nx.draw_networkx_edges(G, pos, ax=ax, alpha=0.35, edge_color="#94a3b8", width=0.8)
+        nx.draw_networkx_nodes(G, pos, ax=ax, node_size=node_sizes,
+                              node_color=node_colors, alpha=0.85, edgecolors="white", linewidths=0.8)
 
         ax.set_title(title, fontsize=14, fontweight="bold")
         ax.axis("off")
