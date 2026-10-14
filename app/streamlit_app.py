@@ -35,27 +35,34 @@ st.set_page_config(
 st.markdown("""
 <style>
     .metric-card {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
         padding: 20px;
         border-radius: 10px;
-        color: white;
+        color: #ffffff !important;
         text-align: center;
         margin: 5px;
     }
     .suspicious-group {
-        background-color: #fff3cd;
-        border-left: 4px solid #ffc107;
-        padding: 10px;
-        margin: 5px 0;
-        border-radius: 5px;
+        background-color: rgba(245, 158, 11, 0.12);
+        border: 1px solid rgba(245, 158, 11, 0.3);
+        border-left: 4px solid #f59e0b;
+        color: inherit !important;
+        padding: 12px;
+        margin: 8px 0;
+        border-radius: 6px;
     }
     .evidence-item {
-        background-color: #f8f9fa;
-        padding: 8px;
-        margin: 3px 0;
-        border-radius: 3px;
-        font-family: monospace;
-        font-size: 12px;
+        background-color: rgba(148, 163, 184, 0.12);
+        color: inherit !important;
+        border: 1px solid rgba(148, 163, 184, 0.25);
+        border-left: 4px solid #3b82f6;
+        padding: 10px 14px;
+        margin: 6px 0;
+        border-radius: 6px;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+        font-size: 13px;
+        line-height: 1.5;
+        word-break: break-word;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -223,15 +230,15 @@ def create_network_plot(
     fig = go.Figure(
         data=[edge_trace, node_trace],
         layout=go.Layout(
-            title=dict(text=title, font=dict(size=16, color="#1e293b")),
+            title=dict(text=title, font=dict(size=16)),
             showlegend=True,
             legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
             hovermode="closest",
             dragmode="pan",  # Allows free dragging/panning across the screen
             xaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
             yaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
-            plot_bgcolor="#f8fafc",
-            paper_bgcolor="#ffffff",
+            plot_bgcolor="rgba(0,0,0,0)",
+            paper_bgcolor="rgba(0,0,0,0)",
             margin=dict(l=20, r=20, t=50, b=20),
             height=650,
             uirevision="constant_view"
