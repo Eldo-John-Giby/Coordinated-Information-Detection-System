@@ -4,6 +4,7 @@ __pycache__/
 *.pyd
 .pytest_cache/
 *.pdf
+!manuscript.pdf
 data/raw/Honduras/honduras_io.csv
 data/raw/UAE/uae_io.csv
 
