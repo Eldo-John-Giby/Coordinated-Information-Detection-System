@@ -434,11 +434,11 @@ python train.py --sample
    ```
 
 ### 11.4 Run Specific Experiments
-* **Paraphrase Robustness Evaluation:**
+* **Paraphrase Robustness Evaluation (Legacy):**
   ```bash
   python train.py --experiment paraphrase_robustness --n-pairs 200
   ```
-* **Verify System Checklist:**
+* **Verify System Acceptance Checklist (Phases 0–6):**
   ```bash
   python scripts/verify_checklist.py
   ```
@@ -447,7 +447,36 @@ python train.py --sample
   python -m pytest tests/ -v
   ```
 
-### 11.5 Launch Interactive Dashboard
+### 11.5 Scientific Paper Experiments & Empirical Replication Suite
+Reproduce the complete empirical evaluation pipeline supporting the publication thesis:
+
+1. **Phase 0 — Linguistic Audit & Corpus Breakdown:**
+   ```bash
+   python scripts/audit_language.py
+   ```
+2. **Phase 1 — Semantic Component Comparison (TF-IDF vs Bi-Encoders vs Cross-Encoders):**
+   ```bash
+   python -m src.evaluation.semantic_comparison
+   ```
+3. **Phase 2 & 3 — Paraphrase Injection Matrix & Adaptive Adversary Simulation:**
+   ```bash
+   python -m src.evaluation.paraphrase_injection --campaign Honduras
+   ```
+4. **Phase 4 — Cross-Campaign Bidirectional Transfer & Metadata Perturbation:**
+   ```bash
+   python -m src.evaluation.cross_campaign
+   # Or via train.py flags:
+   python train.py --train-campaign Honduras --test-campaign UAE
+   ```
+5. **Phase 5 — Statistical Rigor (5-Seed In-Domain, GNN Ablation, Rerank Sensitivity):**
+   ```bash
+   python -m src.evaluation.rigor_experiments
+   python scripts/validate_pair_truth.py
+   ```
+6. **Phase 6 — Publication Summary Report:**
+   Read the comprehensive synthesis of all empirical findings at `results/paper/RESULTS_SUMMARY.md`.
+
+### 11.6 Launch Interactive Dashboard
 ```bash
 streamlit run app/streamlit_app.py
 ```

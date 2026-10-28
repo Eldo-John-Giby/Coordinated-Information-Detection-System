@@ -1,0 +1,160 @@
+{
+  "Honduras": {
+    "campaign": "Honduras",
+    "total_posts": 4704,
+    "class_balance": {
+      "io_posts": 2366,
+      "control_posts": 2338,
+      "io_share_percent": 50.3,
+      "control_share_percent": 49.7
+    },
+    "top_languages": [
+      {
+        "language": "es",
+        "count": 4271,
+        "share_percent": 90.8
+      },
+      {
+        "language": "und",
+        "count": 340,
+        "share_percent": 7.23
+      },
+      {
+        "language": "en",
+        "count": 49,
+        "share_percent": 1.04
+      },
+      {
+        "language": "pt",
+        "count": 14,
+        "share_percent": 0.3
+      },
+      {
+        "language": "in",
+        "count": 9,
+        "share_percent": 0.19
+      },
+      {
+        "language": "ca",
+        "count": 8,
+        "share_percent": 0.17
+      },
+      {
+        "language": "it",
+        "count": 5,
+        "share_percent": 0.11
+      },
+      {
+        "language": "eu",
+        "count": 1,
+        "share_percent": 0.02
+      },
+      {
+        "language": "fr",
+        "count": 1,
+        "share_percent": 0.02
+      },
+      {
+        "language": "tr",
+        "count": 1,
+        "share_percent": 0.02
+      }
+    ],
+    "dominant_language": "es",
+    "dominant_language_share": 90.8,
+    "char_length_stats": {
+      "mean": 126.68,
+      "std": 40.01,
+      "median": 140.0,
+      "min": 1,
+      "max": 309,
+      "p25": 127.75,
+      "p75": 140.0
+    },
+    "word_count_stats": {
+      "mean": 18.56,
+      "std": 7.26,
+      "median": 21.0,
+      "max": 53
+    }
+  },
+  "UAE": {
+    "campaign": "UAE",
+    "total_posts": 4293,
+    "class_balance": {
+      "io_posts": 3099,
+      "control_posts": 1194,
+      "io_share_percent": 72.19,
+      "control_share_percent": 27.81
+    },
+    "top_languages": [
+      {
+        "language": "ar",
+        "count": 3547,
+        "share_percent": 82.62
+      },
+      {
+        "language": "en",
+        "count": 260,
+        "share_percent": 6.06
+      },
+      {
+        "language": "und",
+        "count": 183,
+        "share_percent": 4.26
+      },
+      {
+        "language": "fr",
+        "count": 55,
+        "share_percent": 1.28
+      },
+      {
+        "language": "fa",
+        "count": 47,
+        "share_percent": 1.09
+      },
+      {
+        "language": "es",
+        "count": 45,
+        "share_percent": 1.05
+      },
+      {
+        "language": "tr",
+        "count": 39,
+        "share_percent": 0.91
+      },
+      {
+        "language": "iw",
+        "count": 35,
+        "share_percent": 0.82
+      },
+      {
+        "language": "it",
+        "count": 25,
+        "share_percent": 0.58
+      },
+      {
+        "language": "ja",
+        "count": 23,
+        "share_percent": 0.54
+      }
+    ],
+    "dominant_language": "ar",
+    "dominant_language_share": 82.62,
+    "char_length_stats": {
+      "mean": 120.84,
+      "std": 53.3,
+      "median": 131.0,
+      "min": 1,
+      "max": 304,
+      "p25": 86.0,
+      "p75": 140.0
+    },
+    "word_count_stats": {
+      "mean": 17.44,
+      "std": 8.71,
+      "median": 17.0,
+      "max": 56
+    }
+  }
+}

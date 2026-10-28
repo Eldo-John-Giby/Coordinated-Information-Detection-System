@@ -1,3 +1,4 @@
+from abc import ABC, abstractmethod
 """
 Efficient nearest-neighbor similarity search.
 
@@ -360,14 +361,24 @@ class CrossEncoderReranker:
         self._warned_lower_confidence = False
 
     def _load_model(self):
-        """Lazy-load the cross-encoder model."""
+        """Lazy-load the cross-encoder model with offline/local fallback."""
         if self._model is not None:
             return
         try:
             from sentence_transformers import CrossEncoder
             logger.info(f"Loading cross-encoder model: {self.model_name}")
-            self._model = CrossEncoder(self.model_name, max_length=512)
-            logger.info("Cross-encoder model loaded successfully")
+            try:
+                self._model = CrossEncoder(self.model_name, max_length=512)
+            except Exception as e_online:
+                logger.warning(f"Online loading failed for {self.model_name} ({e_online}), attempting local/offline cache...")
+                try:
+                    self._model = CrossEncoder(self.model_name, max_length=512, local_files_only=True)
+                except Exception as e_local:
+                    fallback_model = "cross-encoder/ms-marco-MiniLM-L-6-v2"
+                    logger.warning(f"Falling back to cached cross-encoder: {fallback_model}")
+                    self._model = CrossEncoder(fallback_model, max_length=512, local_files_only=True)
+                    self.model_name = fallback_model
+            logger.info(f"Cross-encoder model ({self.model_name}) loaded successfully")
         except ImportError:
             raise ImportError(
                 "sentence-transformers is required for CrossEncoderReranker. "
@@ -491,3 +502,118 @@ class CrossEncoderReranker:
                 logger.warning(reason)
             self._warned_lower_confidence = True
         return result
+
+
+# ==============================================================================
+# Common Scorer Interface (Phase 1 Benchmark)
+# ==============================================================================
+
+class BaseSemanticScorer(ABC):
+    """Abstract base class for all semantic pair scoring components."""
+
+    @abstractmethod
+    def score_pairs(self, texts_a: List[str], texts_b: List[str]) -> np.ndarray:
+        """Score pairs of texts, returning 1D array of normalized scores in [0, 1]."""
+        pass
+
+
+class TfidfScorer(BaseSemanticScorer):
+    """Lexical baseline: TF-IDF vectorizer + Cosine similarity."""
+
+    def __init__(self, max_features: int = 10000):
+        from sklearn.feature_extraction.text import TfidfVectorizer
+        self.vectorizer = TfidfVectorizer(max_features=max_features, stop_words=None)
+        self._fitted = False
+
+    def score_pairs(self, texts_a: List[str], texts_b: List[str]) -> np.ndarray:
+        from sklearn.metrics.pairwise import cosine_similarity
+        all_texts = list(set(texts_a + texts_b))
+        if not all_texts:
+            return np.zeros(len(texts_a), dtype=np.float32)
+
+        tfidf_matrix = self.vectorizer.fit_transform(all_texts)
+        text_to_idx = {t: i for i, t in enumerate(all_texts)}
+
+        scores = []
+        for ta, tb in zip(texts_a, texts_b):
+            idx_a = text_to_idx[ta]
+            idx_b = text_to_idx[tb]
+            vec_a = tfidf_matrix[idx_a]
+            vec_b = tfidf_matrix[idx_b]
+            sim = float(cosine_similarity(vec_a, vec_b)[0, 0])
+            scores.append(max(0.0, min(1.0, sim)))
+
+        return np.array(scores, dtype=np.float32)
+
+
+class BiEncoderScorer(BaseSemanticScorer):
+    """Bi-encoder embedding similarity using SentenceTransformer."""
+
+    def __init__(self, model_name: str = "sentence-transformers/all-MiniLM-L6-v2", batch_size: int = 128):
+        self.model_name = model_name
+        self.batch_size = batch_size
+        self._model = None
+
+    def _load(self):
+        if self._model is None:
+            from sentence_transformers import SentenceTransformer
+            try:
+                self._model = SentenceTransformer(self.model_name)
+            except Exception:
+                self._model = SentenceTransformer(self.model_name, local_files_only=True)
+
+    def score_pairs(self, texts_a: List[str], texts_b: List[str]) -> np.ndarray:
+        self._load()
+        unique_texts = list(set(texts_a + texts_b))
+        if not unique_texts:
+            return np.zeros(len(texts_a), dtype=np.float32)
+
+        embeddings = self._model.encode(
+            unique_texts,
+            batch_size=self.batch_size,
+            show_progress_bar=False,
+            normalize_embeddings=True,
+        )
+        text_to_emb = dict(zip(unique_texts, embeddings))
+
+        scores = []
+        for ta, tb in zip(texts_a, texts_b):
+            ea = text_to_emb[ta]
+            eb = text_to_emb[tb]
+            sim = float(np.dot(ea, eb))
+            scores.append(max(0.0, min(1.0, sim)))
+
+        return np.array(scores, dtype=np.float32)
+
+
+class CrossEncoderScorer(BaseSemanticScorer):
+    """Cross-encoder pairwise scorer (NLI or Paraphrase)."""
+
+    def __init__(self, model_name: str = "cross-encoder/ms-marco-MiniLM-L-6-v2", batch_size: int = 64):
+        self.model_name = model_name
+        self.batch_size = batch_size
+        self._reranker = None
+
+    def _load(self):
+        if self._reranker is None:
+            cfg = {
+                "similarity": {
+                    "cross_encoder_model": self.model_name,
+                    "cross_encoder_batch_size": self.batch_size,
+                }
+            }
+            self._reranker = CrossEncoderReranker(cfg)
+            self._reranker._load_model()
+
+    def score_pairs(self, texts_a: List[str], texts_b: List[str]) -> np.ndarray:
+        self._load()
+        if not texts_a:
+            return np.zeros(0, dtype=np.float32)
+
+        pairs = list(zip(texts_a, texts_b))
+        raw_scores = self._reranker._model.predict(
+            pairs, batch_size=self.batch_size, show_progress_bar=False
+        )
+        raw_scores = np.asarray(raw_scores)
+        normalized = self._reranker._normalize_scores(raw_scores)
+        return np.asarray(normalized, dtype=np.float32)

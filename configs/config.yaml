@@ -281,3 +281,66 @@ streamlit:
   theme: "dark"
   max_display_groups: 50
   max_display_accounts: 100
+
+
+# ============================================================
+# PARAPHRASE INJECTION EXPERIMENT (PHASE 2)
+# ============================================================
+paraphrase_injection:
+  # Number of coordinated groups to inject
+  K_groups: 30
+  # Allowed size range of accounts per group
+  group_size_min: 3
+  group_size_max: 8
+  # Replacement rates p of posts in injected groups replaced with paraphrases
+  paraphrase_rates: [0.0, 0.25, 0.50, 0.75, 1.0]
+  # Seeds for replication and bootstrap CI
+  seeds: [42, 43, 44, 45, 46]
+  # Group Louvain size-purity threshold for community recovery
+  purity_threshold: 0.5
+  # Model for LLM paraphrasing
+  llm_model: "claude-sonnet-4-6"
+  # Maximum API calls permitted across experiment (safety valve)
+  api_limit: 500
+  # Cache file path for reproducible, free reruns
+  cache_path: "data/cache/paraphrases.jsonl"
+  # Prompt templates for the 3 levels of paraphrase
+  prompt_templates:
+    light: "Paraphrase using contextual synonyms and slight sentence restructuring while preserving exact claims, hashtags, handles, and URLs: {text}"
+    heavy: "Completely rewrite with entirely different vocabulary and sentence structure while preserving core meaning, hashtags, handles, and URLs: {text}"
+    style_shift: "Rewrite shifting tone to a distinct stylistic register while preserving core meaning, hashtags, handles, and URLs: {text}"
+
+# ============================================================
+# ADAPTIVE ADVERSARY EXPERIMENT (PHASE 3)
+# ============================================================
+adaptive_adversary:
+  levels: ["A1", "A2", "A3"]
+  max_jitter_hours: 6.0
+  seeds: [42, 43, 44, 45, 46]
+
+# ============================================================
+# CROSS-CAMPAIGN EXPERIMENT (PHASE 4)
+# ============================================================
+cross_campaign:
+  campaigns: ["Honduras", "UAE"]
+  directions:
+    - ["Honduras", "UAE"]
+    - ["UAE", "Honduras"]
+  feature_configurations:
+    - "tabular_only"
+    - "coordination_graph_only"
+    - "gnn_structural_only"
+    - "gnn_full"
+  randomize_features:
+    - "follower_count"
+    - "following_count"
+
+# ============================================================
+# RIGOR & STATISTICAL ANALYSIS CONFIGURATION (PHASE 5)
+# ============================================================
+rigor:
+  seeds: [42, 43, 44, 45, 46]
+  confidence_level: 0.95
+  n_bootstraps: 1000
+  max_rerank_caps: [5000, 20000, 50000]
+  hand_label_sample_size: 50

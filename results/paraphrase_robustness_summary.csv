@@ -1,0 +1,11 @@
+metric,value
+mean_biencoder_original,0.8307638156414032
+mean_biencoder_paraphrased,0.7567686527967453
+biencoder_score_drop,0.0739951628446579
+biencoder_relative_drop_%,8.906883214157428
+mean_crossencoder_original,0.849860668182373
+mean_crossencoder_paraphrased,0.8412858843803406
+crossencoder_score_drop,0.00857478380203247
+crossencoder_relative_drop_%,1.0089634917676449
+drop_ratio (bi_drop / cross_drop),8.62939107888865
+n_pairs,100.0

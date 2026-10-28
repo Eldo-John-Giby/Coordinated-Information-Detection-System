@@ -5,6 +5,7 @@ Runs:
 1. Feature ablation experiments
 2. Model comparison experiments
 3. Cross-campaign evaluation
+4. Paraphrase robustness experiment
 """
 
 import json
@@ -98,3 +99,21 @@ class ExperimentRunner:
         experiment = ParaphraseRobustnessExperiment(exp_config)
         result = experiment.run(use_sample=use_sample)
         return result.get("summary")
+
+    def run_cross_campaign(self) -> Optional[pd.DataFrame]:
+        """Run cross-campaign transfer evaluation.
+
+        Demonstrates that GNNs and graph coordination topology generalize
+        across campaigns and evasion tactics while tabular baselines overfit.
+
+        Returns:
+            Transfer results DataFrame.
+        """
+        try:
+            from src.evaluation.cross_campaign import CrossCampaignEvaluation
+        except ImportError as e:
+            logger.error(f"Cannot import cross-campaign evaluation: {e}")
+            return None
+
+        evaluator = CrossCampaignEvaluation(self.config)
+        return evaluator.evaluate_transfer()

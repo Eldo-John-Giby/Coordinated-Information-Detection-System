@@ -203,8 +203,12 @@ def main():
                        choices=["DEBUG", "INFO", "WARNING", "ERROR"],
                        help="Logging level")
     parser.add_argument("--experiment", type=str, default=None,
-                       choices=["paraphrase_robustness"],
+                       choices=["paraphrase_robustness", "cross_campaign", "paraphrase_injection"],
                        help="Run a specific experiment instead of the full pipeline")
+    parser.add_argument("--train-campaign", type=str, default=None,
+                        help="Source campaign for cross-campaign evaluation")
+    parser.add_argument("--test-campaign", type=str, default=None,
+                        help="Target campaign for cross-campaign evaluation")
     parser.add_argument("--n-pairs", type=int, default=200,
                        help="Number of pairs for paraphrase robustness experiment")
 
@@ -262,6 +266,26 @@ def main():
         logger.info("\nExperiment complete. Results saved to results/ directory.")
         return
 
+    if args.experiment == "cross_campaign" or args.train_campaign or args.test_campaign:
+        logger.info("Running cross-campaign transfer evaluation (Phase 4)...")
+        from src.evaluation.cross_campaign import CrossCampaignBenchmark
+        benchmark = CrossCampaignBenchmark(config)
+        results = benchmark.run_benchmark()
+        if results is not None:
+            logger.info(f"\n{results.to_string(index=False)}")
+        logger.info("\nCross-campaign experiment complete. Results saved to results/paper/ directory.")
+        return
+
+    if args.experiment == "paraphrase_injection":
+        logger.info("Running paraphrase injection experiment (Phases 2 & 3)...")
+        from src.evaluation.paraphrase_injection import ParaphraseInjectionExperiment
+        exp = ParaphraseInjectionExperiment(config)
+        campaign_name = config.get("data", {}).get("campaign", "Honduras")
+        df_camp = exp.load_preprocessed_data(campaign_name)
+        exp.run_primary_experiment(df_camp)
+        exp.run_adaptive_adversary_experiment(df_camp)
+        logger.info("\nParaphrase injection experiment complete.")
+        return
     # Import and run pipeline
     from src.pipeline import CoordinationDetectionPipeline
 
